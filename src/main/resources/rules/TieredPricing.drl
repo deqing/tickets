@@ -1,0 +1,31 @@
+import com.devin.sportsbet.tickets.model.Customer;
+import com.devin.sportsbet.tickets.model.TicketRequest;
+import com.devin.sportsbet.tickets.model.TicketType;
+import com.devin.sportsbet.tickets.model.TicketTypeCost;
+
+global com.devin.sportsbet.tickets.model.TicketTypeCostResponse response;
+
+dialect "mvel"
+
+
+rule "Calculate ticket costs" when
+    $request: TicketRequest()
+    $senior: Number() from accumulate($c: Customer(age >= 65) from $request.customers, count($c))
+    $adult: Number() from accumulate($c: Customer(age >= 18 && age < 65) from $request.customers, count($c))
+    $teen: Number() from accumulate($c: Customer(age >= 11 && age < 18) from $request.customers, count($c))
+    $children: Number() from accumulate($c: Customer(age < 11 && age > 0) from $request.customers, count($c))
+then
+    response.setTransactionId($request.transactionId);
+
+    response.addCost(TicketType.ADULT, $adult, $adult * 25);
+
+    if ($children >= 3) {
+        response.addCost(TicketType.CHILDREN, $children, $children * 5 * 0.75);
+    } else {
+        response.addCost(TicketType.CHILDREN, $children, $children * 5);
+    }
+
+    response.addCost(TicketType.SENIOR, $senior, $senior * 25 * 0.7);
+    response.addCost(TicketType.TEEN, $teen, $teen * 12);
+    response.calculateTotalCost();
+end
